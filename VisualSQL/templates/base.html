@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b5f63">
+  <title>VisualSQL &bull; Enterprise Query Intelligence & Performance Optimization</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>VisualSQL</strong>
+          <span>Query Intelligence</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section-title">PLATFORM</div>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#dashboard" data-nav="dashboard" class="on">
+          <span class="nav-icon" data-icon="grid"></span><span>Overview</span>
+          <span class="nav-pill" id="nav-exp-count">0</span>
+        </a>
+        <a href="#editor" data-nav="editor">
+          <span class="nav-icon" data-icon="code"></span><span>SQL Studio</span>
+        </a>
+        <a href="#plan" data-nav="plan">
+          <span class="nav-icon" data-icon="layers"></span><span>Execution Plan</span>
+          <span class="nav-pill badge-plan-status" id="nav-plan-badge">O(log N)</span>
+        </a>
+        <a href="#bench" data-nav="bench">
+          <span class="nav-icon" data-icon="gauge"></span><span>Benchmark Lab</span>
+        </a>
+        <a href="#results" data-nav="results">
+          <span class="nav-icon" data-icon="chart"></span><span>Analytics & Matrix</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-section-title">MANAGEMENT</div>
+      <nav class="nav-links" aria-label="Management navigation">
+        <a href="#datasets" data-nav="datasets">
+          <span class="nav-icon" data-icon="database"></span><span>Data Factory</span>
+          <span class="nav-pill" id="nav-ds-count">0</span>
+        </a>
+        <a href="#history" data-nav="history">
+          <span class="nav-icon" data-icon="clock"></span><span>Audit History</span>
+        </a>
+        <a href="#reports" data-nav="reports">
+          <span class="nav-icon" data-icon="file"></span><span>Export Reports</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status-card">
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <div class="status-details">
+              <span class="status-name" id="backend-label">Initializing</span>
+              <span class="status-meta" id="backend-meta">Connecting...</span>
+            </div>
+          </div>
+        </div>
+        <div class="footer-actions">
+          <button id="theme" class="icon-button" title="Toggle dark/light theme" aria-label="Toggle theme">
+            <span data-icon="moon"></span>
+          </button>
+          <button id="btn-quick-seed" class="btn-sidebar-seed" title="Generate test data">
+            <span data-icon="refresh"></span> <span>Seed Data</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Shell -->
+    <main class="main-shell">
+      <header class="topbar">
+        <button id="menu-button" class="icon-button menu-button" aria-label="Open navigation">
+          <span data-icon="menu"></span>
+        </button>
+        <div class="page-title-wrap">
+          <div class="eyebrow-container">
+            <span class="eyebrow">Enterprise Engine</span>
+            <span class="eyebrow-separator">&bull;</span>
+            <span class="eyebrow" id="topbar-backend">SQLite Engine (WAL)</span>
+          </div>
+          <h1 id="page-title">Overview Dashboard</h1>
+        </div>
+
+        <div class="topbar-stats">
+          <div class="metric-pill">
+            <span class="metric-pill-dot green"></span>
+            <span class="metric-pill-label">Indexed Records:</span>
+            <strong class="metric-pill-val" id="topbar-records">0</strong>
+          </div>
+          <div class="metric-pill">
+            <span class="metric-pill-dot blue"></span>
+            <span class="metric-pill-label">Workload Tables:</span>
+            <strong class="metric-pill-val" id="topbar-tables">0</strong>
+          </div>
+          <a href="#bench" class="button button-primary button-sm header-action-btn">
+            <span data-icon="play"></span> New Benchmark
+          </a>
+        </div>
+      </header>
+
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

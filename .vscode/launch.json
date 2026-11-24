@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "VisualSQL: Run & Debug App",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/VisualSQL/app.py",
+      "cwd": "${workspaceFolder}/VisualSQL",
+      "args": [],
+      "console": "integratedTerminal",
+      "jinja": true
+    }
+  ]
+}

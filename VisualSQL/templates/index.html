@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- 1. DASHBOARD OVERVIEW -->
+<section id="dashboard" class="on">
+  <div class="section-heading">
+    <div>
+      <h2>Overview & Workload Performance</h2>
+      <p>Live telemetry, query workload benchmarks, and algorithmic scale analysis.</p>
+    </div>
+    <div class="heading-actions">
+      <button class="button button-secondary button-sm" id="btn-refresh-dash">
+        <span data-icon="refresh"></span> Refresh
+      </button>
+      <a href="#bench" class="button button-primary button-sm">
+        <span data-icon="play"></span> Launch Benchmark
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="card-grid" id="kpi-cards">
+    <article class="card">
+      <div class="card-head">
+        <span class="card-label">TOTAL EXPERIMENTS</span>
+        <span class="card-icon teal" data-icon="gauge"></span>
+      </div>
+      <div class="card-value" id="kpi-experiments">0</div>
+      <div class="card-trend positive">
+        <span data-icon="check"></span> <span id="kpi-experiments-sub">Evaluated benchmark passes</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="card-label">UNIQUE SQL WORKLOADS</span>
+        <span class="card-icon blue" data-icon="code"></span>
+      </div>
+      <div class="card-value" id="kpi-queries">0</div>
+      <div class="card-trend neutral">
+        <span id="kpi-queries-sub">Distinct SQL statements tested</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="card-label">AVERAGE RUNTIME</span>
+        <span class="card-icon amber" data-icon="clock"></span>
+      </div>
+      <div class="card-value" id="kpi-avg-ms">-</div>
+      <div class="card-trend neutral">
+        <span id="kpi-avg-sub">Across all measured configurations</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="card-label">PEAK OPTIMIZATION GAIN</span>
+        <span class="card-icon green" data-icon="trending-up"></span>
+      </div>
+      <div class="card-value highlight-green" id="kpi-best-gain">-</div>
+      <div class="card-trend positive">
+        <span id="kpi-best-config">Top optimization technique</span>
+      </div>
+    </article>
+  </div>
+
+  <!-- Quick Action Banner -->
+  <div class="quick-banner">
+    <div class="banner-content">
+      <div class="banner-badge">OPTIMIZATION TIP</div>
+      <h3>Eliminate sequential O(N) table scans with B-Tree indexes</h3>
+      <p>Compare baseline unindexed queries against projection rewrites and secondary indexes across 1,000 to 100,000 rows.</p>
+    </div>
+    <div class="banner-buttons">
+      <a href="#editor" class="button button-secondary">Open SQL Studio</a>
+      <a href="#bench" class="button button-primary">Run Benchmark Lab</a>
+    </div>
+  </div>
+
+  <!-- Charts Row 1: Latency & Gain -->
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Recent Configuration Latency Comparison</h3>
+          <p class="panel-subtitle">Average execution time in milliseconds (lower is faster)</p>
+        </div>
+        <span class="chart-badge">Wall-Clock ms</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-dash-latency"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Optimization Improvement Distribution</h3>
+          <p class="panel-subtitle">Percentage performance gain over baseline query</p>
+        </div>
+        <span class="chart-badge green">Speedup %</span>
+      </div>
+      <div class="chart-wrap"><canvas id="c-dash-gain"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2: O(N) vs O(log N) Scalability Curve -->
+  <div class="panel" style="margin-top: 18px;">
+    <div class="panel-head">
+      <div>
+        <h3>Complexity Scaling Curve: O(N) Table Scan vs O(log N) Index Seek</h3>
+        <p class="panel-subtitle">Visual demonstration of how query execution time scales as dataset volume increases (1K &rarr; 100K)</p>
+      </div>
+      <div class="legend-pills">
+        <span class="legend-pill red">&bull; Full Table Scan (O(N))</span>
+        <span class="legend-pill teal">&bull; B-Tree Index Seek (O(log N))</span>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height: 260px;"><canvas id="c-dash-scale"></canvas></div>
+  </div>
+
+  <!-- Recent Benchmark Feed -->
+  <div class="panel" style="margin-top: 18px;">
+    <div class="panel-head">
+      <div>
+        <h3>Recent Benchmark Experiments</h3>
+        <p class="panel-subtitle">Latest query benchmark runs with one-click report access</p>
+      </div>
+      <a href="#history" class="button button-secondary button-sm">View Full History</a>
+    </div>
+    <div id="dash-recent-tbl" class="tbl"></div>
+  </div>
+</section>
+
+<!-- 2. SQL STUDIO & WORKBENCH -->
+<section id="editor">
+  <div class="section-heading">
+    <div>
+      <h2>SQL Studio & Query Workbench</h2>
+      <p>Interactive schema explorer, live query execution, and instant plan inspection.</p>
+    </div>
+  </div>
+
+  <div class="studio-layout">
+    <!-- Schema Explorer Sidebar -->
+    <div class="panel schema-panel">
+      <div class="panel-head">
+        <h3>Schema Explorer</h3>
+        <button class="icon-button icon-button-sm" id="btn-refresh-schema" title="Refresh schema">
+          <span data-icon="refresh"></span>
+        </button>
+      </div>
+      <div class="schema-search">
+        <input type="text" id="schema-filter" placeholder="Filter tables & columns...">
+      </div>
+      <div class="schema-tree" id="schema-tree">
+        <div class="schema-loading">Loading database schema...</div>
+      </div>
+    </div>
+
+    <!-- SQL Editor Main Pane -->
+    <div class="editor-main-pane">
+      <div class="panel">
+        <div class="form-grid">
+          <div class="field span-6">
+            <label for="q-lib">Query Template Library</label>
+            <select id="q-lib">
+              <optgroup label="Basic Filtering (WHERE)">
+                <option value="SELECT * FROM employees WHERE department = 'Sales'">Single Column Filter (department = 'Sales')</option>
+                <option value="SELECT * FROM employees WHERE city = 'Chennai'">High-Cardinality Filter (city = 'Chennai')</option>
+                <option value="SELECT * FROM employees WHERE salary > 100000">Range Scan (salary > 100,000)</option>
+              </optgroup>
+              <optgroup label="Multi-Predicate & Composite">
+                <option value="SELECT * FROM employees WHERE department = 'Engineering' AND city = 'Bengaluru'">Composite Predicate (department AND city)</option>
+                <option value="SELECT employee_name, department, salary FROM employees WHERE department = 'Finance' AND salary >= 75000">Projection + Filter (Finance high earners)</option>
+              </optgroup>
+              <optgroup label="Sorting & Aggregation">
+                <option value="SELECT department, COUNT(*) as count, AVG(salary) as avg_sal FROM employees GROUP BY department">Aggregation (Department salary metrics)</option>
+                <option value="SELECT employee_id, employee_name, salary FROM employees WHERE department = 'Sales' ORDER BY salary DESC LIMIT 50">Top Earners in Sales (ORDER BY salary DESC)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="field span-3">
+            <label for="size">Dataset Scale</label>
+            <select id="size">
+              <option value="1000">1,000 rows (Sample)</option>
+              <option value="10000">10,000 rows (Standard)</option>
+              <option value="50000">50,000 rows (Medium)</option>
+              <option value="100000">100,000 rows (Heavy)</option>
+            </select>
+          </div>
+
+          <div class="field span-3">
+            <label>Suggested Indexes</label>
+            <div id="editor-index-chips" class="candidate-chips">
+              <span class="chip-placeholder">Analyze query to view</span>
+            </div>
+          </div>
+
+          <div class="field span-12">
+            <div class="editor-header-bar">
+              <label for="sql">SQL Query (Read-only SELECT / CTE)</label>
+              <div class="editor-tools">
+                <button type="button" class="btn-text-tool" id="btn-format-sql" title="Format SQL with uppercase keywords">
+                  <span data-icon="sparkles"></span> Beautify SQL
+                </button>
+              </div>
+            </div>
+            <textarea id="sql" rows="7" spellcheck="false" placeholder="Enter your SELECT query here..."></textarea>
+          </div>
+
+          <div class="span-12 toolbar editor-action-bar">
+            <button class="button button-primary" id="run-query">
+              <span data-icon="play"></span> Run Query <span class="kbd-shortcut">Ctrl+Enter</span>
+            </button>
+            <button class="button button-secondary" id="btn-studio-explain">
+              <span data-icon="layers"></span> Explain Plan
+            </button>
+            <button class="button button-secondary" id="btn-studio-benchmark">
+              <span data-icon="gauge"></span> Benchmark in Lab
+            </button>
+            <div class="query-stats-pill" id="query-stats" style="display:none">
+              <span class="stat-item"><span data-icon="clock"></span> <span id="q-stat-time">0 ms</span></span>
+              <span class="stat-divider">&bull;</span>
+              <span class="stat-item"><span data-icon="database"></span> <span id="q-stat-rows">0 rows</span></span>
+              <span class="stat-divider">&bull;</span>
+              <span class="stat-badge status-ok" id="q-stat-status">200 OK</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Grid -->
+      <div class="panel" style="margin-top: 16px;">
+        <div class="panel-head">
+          <div class="results-head-meta">
+            <h3>Query Results Data Grid</h3>
+            <span class="results-counter" id="results-counter">No query executed yet</span>
+          </div>
+          <div class="toolbar">
+            <input type="text" id="results-filter" class="input-sm" placeholder="Search rows..." style="display:none; width: 180px;">
+          </div>
+        </div>
+        <div id="q-out" class="tbl"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. EXECUTION PLAN & QUERY ANALYZER -->
+<section id="plan">
+  <div class="section-heading">
+    <div>
+      <h2>Visual Execution Plan & Query Analyzer</h2>
+      <p>Inspect database access operators, B-Tree index seeks vs table scans, and optimization health score.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="form-grid">
+      <div class="field span-9">
+        <label for="p-sql">SQL Query for Analysis</label>
+        <textarea id="p-sql" rows="4">SELECT * FROM employees WHERE department = 'Sales'</textarea>
+      </div>
+      <div class="field span-3">
+        <label for="p-size">Dataset Target</label>
+        <select id="p-size">
+          <option value="1000">1,000 rows</option>
+          <option value="10000">10,000 rows</option>
+          <option value="50000">50,000 rows</option>
+          <option value="100000">100,000 rows</option>
+        </select>
+        <div style="margin-top: 14px;">
+          <button class="button button-primary" id="run-plan" style="width: 100%;">
+            <span data-icon="layers"></span> Analyze Execution Plan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan Verdict Banner -->
+  <div id="plan-verdict-box" style="margin-top: 18px; display: none;">
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-score-box">
+        <div class="score-circle" id="verdict-score-circle">
+          <span class="score-number" id="verdict-score">90</span>
+          <span class="score-label">HEALTH</span>
+        </div>
+      </div>
+      <div class="verdict-details">
+        <div class="verdict-tag" id="verdict-tag">OPTIMAL ACCESS</div>
+        <h3 id="verdict-title">B-Tree Index Seek Active</h3>
+        <p id="verdict-desc">Query engine navigates directly to matching records in logarithmic time.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visual Node Flow Graph -->
+  <div class="panel" id="plan-graph-panel" style="margin-top: 18px; display: none;">
+    <div class="panel-head">
+      <h3>Visual Execution Pipeline</h3>
+      <span class="chart-badge">Data Flow</span>
+    </div>
+    <div class="plan-flow-container" id="plan-flow-container">
+      <!-- Generated nodes go here -->
+    </div>
+  </div>
+
+  <!-- Structured Steps Table -->
+  <div class="panel" style="margin-top: 18px;">
+    <div class="panel-head">
+      <h3>Operator Breakdown & Diagnostics</h3>
+      <span class="chart-badge">Query Plan Details</span>
+    </div>
+    <div id="p-out" class="tbl"></div>
+  </div>
+</section>
+
+<!-- 4. BENCHMARK LAB -->
+<section id="bench">
+  <div class="section-heading">
+    <div>
+      <h2>Benchmark Studio & Multi-Variant Comparison</h2>
+      <p>Measure baseline unindexed performance vs projection rewrites and secondary B-Tree indexes.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="form-grid">
+      <div class="field span-4">
+        <label for="b-name">Benchmark Experiment Name</label>
+        <input id="b-name" placeholder="e.g. Sales Department Filter Benchmark" value="Department Filter Optimization">
+      </div>
+      <div class="field span-2">
+        <label for="b-size">Dataset Scale</label>
+        <select id="b-size">
+          <option value="1000">1,000 records</option>
+          <option value="10000" selected>10,000 records</option>
+          <option value="50000">50,000 records</option>
+          <option value="100000">100,000 records</option>
+        </select>
+      </div>
+      <div class="field span-2">
+        <label for="b-reps">Repetition Passes</label>
+        <input id="b-reps" type="number" value="5" min="1" max="30">
+      </div>
+      <div class="field span-4">
+        <label for="b-idx">Index Columns (Click to Toggle / Type)</label>
+        <input id="b-idx" placeholder="e.g. department, city" value="department">
+        <div id="b-suggested-chips" class="chips-container" style="margin-top: 6px;"></div>
+      </div>
+      <div class="field span-12">
+        <label for="b-sql">Target SQL Query</label>
+        <textarea id="b-sql" rows="4">SELECT * FROM employees WHERE department = 'Sales'</textarea>
+      </div>
+      <div class="span-12 toolbar">
+        <button class="button button-primary" id="b-go">
+          <span data-icon="play"></span> Run Benchmark Experiment
+        </button>
+        <span class="text-muted" style="font-size: 12px; margin-left: 8px;">
+          Includes warm-up cycles to eliminate cold-start cache anomalies.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benchmark Output Container -->
+  <div id="b-out" style="margin-top: 18px;"></div>
+</section>
+
+<!-- 5. ANALYTICS & RESULTS MATRIX -->
+<section id="results">
+  <div class="section-heading">
+    <div>
+      <h2>Performance Analytics & Comparison Matrix</h2>
+      <p>Aggregated benchmark metrics across configurations, data volumes, and index topologies.</p>
+    </div>
+    <div class="toolbar">
+      <a class="button button-secondary button-sm" href="/report/csv">
+        <span data-icon="download"></span> Export All (CSV)
+      </a>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Configuration Latency Matrix</h3>
+          <p class="panel-subtitle">Average runtime by configuration and dataset scale</p>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="c-matrix-latency"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Relative Improvement Distribution</h3>
+          <p class="panel-subtitle">Percentage performance enhancement over baseline</p>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="c-matrix-gain"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top: 18px;">
+    <div class="panel-head">
+      <div>
+        <h3>All Measured Benchmark Configurations</h3>
+        <p class="panel-subtitle">Empirical execution records with latency, min/max bounds, and access types</p>
+      </div>
+    </div>
+    <div id="r-tbl" class="tbl"></div>
+  </div>
+</section>
+
+<!-- 6. DATA FACTORY & DATASETS -->
+<section id="datasets">
+  <div class="section-heading">
+    <div>
+      <h2>Data Factory & Dataset Management</h2>
+      <p>Generate high-volume synthetic benchmark data or upload custom CSV datasets.</p>
+    </div>
+    <div class="toolbar">
+      <button class="button button-primary button-sm" id="setup-data">
+        <span data-icon="refresh"></span> Generate Standard Benchmark Datasets
+      </button>
+    </div>
+  </div>
+
+  <!-- Dataset Generator & Uploader Grid -->
+  <div class="form-grid">
+    <div class="panel span-6">
+      <div class="panel-head">
+        <h3>Custom Data Generator</h3>
+      </div>
+      <p style="color:var(--muted);margin-bottom:14px">Synthesize realistic employee data with realistic names, departments, salaries, and cities.</p>
+      <div class="form-grid">
+        <div class="field span-6">
+          <label for="gen-size">Row Count</label>
+          <input type="number" id="gen-size" value="5000" min="100" max="200000" step="1000">
+        </div>
+        <div class="field span-6">
+          <label for="gen-name">Table Name</label>
+          <input type="text" id="gen-name" value="employees_5000" placeholder="e.g. employees_5000">
+        </div>
+        <div class="span-12">
+          <button class="button button-secondary" id="btn-custom-generate" style="width: 100%;">
+            <span data-icon="sparkles"></span> Generate Dataset
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel span-6">
+      <div class="panel-head">
+        <h3>Import Custom Employee CSV</h3>
+      </div>
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-icon" data-icon="upload-cloud"></div>
+        <div class="drop-zone-text"><strong>Click to select</strong> or drag and drop your CSV file here</div>
+        <input type="file" id="csv" accept=".csv" style="display:none">
+        <div id="file-chosen-name" style="margin-top: 8px; font-weight: 600; color: var(--primary);"></div>
+      </div>
+      <div class="form-grid" style="margin-top: 12px;">
+        <div class="field span-6">
+          <label for="dname">Dataset Identifier</label>
+          <input id="dname" placeholder="e.g. quarterly_audit">
+        </div>
+        <div class="field span-6" style="justify-content: flex-end;">
+          <div class="toolbar" style="width: 100%;">
+            <button class="button button-secondary" id="preview-csv" style="flex:1">Preview</button>
+            <button class="button button-primary" id="upload-csv" style="flex:1">Import</button>
+          </div>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:11px;margin:10px 0 0">
+        Required schema: <code>employee_id, employee_name, department, salary, city</code>
+      </p>
+    </div>
+  </div>
+
+  <div id="prev" class="tbl" style="margin-top: 16px;"></div>
+
+  <div class="panel" style="margin-top: 18px;">
+    <div class="panel-head">
+      <h3>Active Benchmark Datasets</h3>
+      <span class="chart-badge">Database Tables</span>
+    </div>
+    <div id="ds-list" class="tbl"></div>
+  </div>
+</section>
+
+<!-- 7. AUDIT HISTORY -->
+<section id="history">
+  <div class="section-heading">
+    <div>
+      <h2>Benchmark History & Audit Trail</h2>
+      <p>Review past experiments, analyze latency regressions, and export executive reports.</p>
+    </div>
+    <div class="toolbar">
+      <button class="button button-danger button-sm" id="btn-clear-history">
+        <span data-icon="trash"></span> Clear History
+      </button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div id="h-tbl" class="tbl"></div>
+  </div>
+</section>
+
+<!-- 8. EXPORT REPORTS -->
+<section id="reports">
+  <div class="section-heading">
+    <div>
+      <h2>Executive Reports & Exports</h2>
+      <p>Download professional PDF performance audits and CSV data exports.</p>
+    </div>
+  </div>
+
+  <div class="reports-grid">
+    <div class="panel report-card">
+      <div class="report-icon-box" data-icon="file"></div>
+      <h3>CSV Results Export</h3>
+      <p>Export all historical benchmark measurements, execution statistics, access types, and speedup gains as a flat CSV.</p>
+      <div style="margin-top: auto; padding-top: 16px;">
+        <a class="button button-primary" href="/report/csv" style="width: 100%;">
+          <span data-icon="download"></span> Download Results CSV
+        </a>
+      </div>
+    </div>
+
+    <div class="panel report-card">
+      <div class="report-icon-box teal" data-icon="layers"></div>
+      <h3>Executive PDF Audit Report</h3>
+      <p>Complete executive report including query SQL, timing measurements, access type breakdown, and DBA recommendations.</p>
+      <div style="margin-top: auto; padding-top: 16px;">
+        <p style="color:var(--muted);font-size:12px;margin-bottom:8px">Select experiment from Benchmark History to download PDF, or use latest:</p>
+        <div id="pdf-quick-links">
+          <a class="button button-secondary" id="btn-latest-pdf" href="/report/pdf/1" style="width: 100%;">
+            <span data-icon="download"></span> Download Latest Experiment PDF
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
